@@ -116,6 +116,78 @@ return v_sum;
 
 end;
 $$;
+----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION get_age(p_mobileno bigint,p_current_date timestamp with time zone)
+returns text
+language 'plpgsql'
+as $$
+declare age text;
+--get the age based on patient
+begin
+select age(p_current_date,dob) into age from patient 
+where mobileno = p_mobileno;
+
+return age;
+end;
+$$;
+
+
+select  age(9978657895,now())
+
+--------------------------------------------------------------------------------------------------------------------
+
+select overlay('Goooooooooooooood Morning' placing 'ood' from 2);
+select position ('eshwari' in firstname ) from patient  where mobileno = 9786878234;
+select substring(firstname from 4  for 5) from patient;
+
+select btrim('shivanand', 'sand');
+
+select translate('translate','rnlt','1234'); --41a2s3a4e
+select reverse(firstname) from patient; --dnanavihS
+select chr(72) as "code of chr(72)"; --H
+select concat(firstname,lastname) from patient;
+select age(now(),timestamp '1996-08-16');
+select clock_timestamp();
+select age(timestamp'1996-08-16');  -- 26 years 6 mons 16 days
+select date_part('hour',timestamp '2022-08-19 19:27:45'); --19
+select date_trunc('hour',clock_timestamp();
+select initcap('SHIVANAND');
+SELECT left(firstname,4)  from patient;
+select lpad('W3SCHOOL',30,'XXXXXXXXXX'); --XXXXXXXXXXXXXXXXXXXXXXW3SCHOOL
+Select lpad (cost::text ,20, 'XXXXXXX') from bill;
+select quote_ident('select * from patient');
+select repeat(firstname,3) from patient;
+
+select replace(firstname,'shivana','******') from patient;
+select split_part('91-974242-9833','-',2);
+
+
+
+---------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 select ge_totalcost();
 
