@@ -1,0 +1,127 @@
+select * from patient;
+
+DO 
+$$
+declare v_email patient.email%type:='shivauppe@gmail.com';
+declare v_row record;
+BEGIN
+for v_row in select * from patient
+loop
+if v_row.email = v_email then
+raise exception 'duplicate email : %',v_row.email using hint = 'check the email again';
+end if;
+end loop;
+===========================
+do
+$$
+declare
+v_counter int:=0;
+v_row int := 0;
+begin
+SELECT COUNT(*) into v_counter from bill;
+while v_row < v_counter
+loop
+insert into bill (appoint_id_fk,treatment_type,cost)values(5,'implant',43555);
+raise notice 'v_row = %',v_row;
+v_row= v_row+1;
+end loop;
+
+-- select * from bill;
+end;
+$$;
+==============================================================================
+
+create or replace procedure addblood
+(
+p_id out bloodbank.id%type,
+p_donorid bloodbank.donorid_fk%type,
+p_bloodcat bloodbank.bloodcat%type,
+p_qty bloodbank.qty%type,
+p_doc bloodbank.doc%type
+)
+language 'plpgsql'
+as $$
+begin
+insert into bloodbank(donorid_fk,bloodcat,qty,doc) values(p_donorid,p_bloodcat,p_qty,p_doc)
+returning id into p_id;
+end
+$$;
+
+
+call addblood(0,1,'0+',1000,'2023-03-01');
+=====================================================================================
+-- CREATE type bloodtype as enum('A+','A-','B+','B-','AB+','AB-','O+','O-');
+
+CREATE OR REPLACE PROCEDURE updateblood(
+p_id IN bloodbank.id%type,
+	p_doc out bloodbank.doc%type,
+	p_qty in out bloodbank.qty%type
+	)
+	language 'plpgsql'
+	as $$
+	begin
+	update bloodbank 
+	set qty = qty+p_qty
+	where id = p_id
+	returning doc,qty into p_doc,p_qty;
+	end
+	$$;
+	
+	
+	call updateblood(2,null,2000);
+=========================================================================================
+create or replace procedure deleteblood(
+p_id IN bloodbank.id%type
+)
+language 'plpgsql'
+as $$
+begin 
+	delete from bloodbank where id = p_id;
+	end
+	$$;
+	
+	select * from bloodbank;
+	call deleteblood(2);
+=====================================================================================
+
+create or replace procedure bulkinsertion()
+LANGUAGE 'plpgsql' as
+$$
+declare v_row record;
+-- call bulkinsertion();
+--select * from appointment;
+BEGIN
+CREATE TABLE tmpbill as (select * from bill );
+for v_row in select * from tmpbill
+loop
+if v_row.bill_no != 5050 then
+insert into bill(appoint_id_fk,treatment_type,cost) values(5,'consultation',500);
+end if;
+end loop;
+drop table tmpbill;
+end;
+$$;
+-- select * from bill;
+==================================================================================================
+create or replace function ge_totalcost () returns int
+language 'plpgsql'
+as $$
+declare v_sum int;
+begin
+select sum(cost)
+into v_sum
+from bill;
+
+return v_sum;
+
+end;
+$$;
+
+select ge_totalcost();
+
+===============================================================================================
+
+
+
+
+
