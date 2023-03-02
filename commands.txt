@@ -1,0 +1,343 @@
+bin>psql.exe -U postgres -ddvdrental -f C:\Users\backup\dvdrental\dvdrental.tar- restore
+
+copy bill from 'c:\users\backup\bill.csv' DELIMITER ',' CSV HEADER;
+
+SELECT DATE '2023-03-02' + INTERVAL '1 MONTH'; //
+SELECT DATE '2023-03-02' + INTERVAL '1 day';
+SELECT DATE '2023-03-02' + INTERVAL '1 yEAR';
+SELECT DATE '2023-03-02' + INTERVAL '1 week';
+SELECT DATE '2023-03-02' + INTERVAL ' 1 week 1 hour';
+select date '2023-03-02' - int '4';
+select now() - interval '1 day'; //
+select current_date - int '5';
+select to_char(dob,'dd/mm/yy') as dob FROM PATIENT;
+SELECT NOW()::DATE - INT '5';//2023-02-25
+select justify_days(interval '47 DAYS');// --1MON 17DAYS
+SELECT JUSTIFY_HOURS(INTERVAL '36 HOURS'); -- 1DAY 12 HRS
+SELECT JUSTIFY_INTERVAL(INTERVAL '1 MON - 1HOUR'); -- 29 DAYS 23 HRS
+select to_date('19701202','yyyymmdd'); -- 1970-12-02
+
+===============================================================================================
+select roles[1] -> 'rolename' as role_name from  dental_user;
+select roles from dental_user;
+
+update dental_user 
+SET roles[1] = jsonb_set(Roles[1],'{rolename}','"role_manager"');
+select roles[1] -> 'rolename' as role_name from  dental_user;
+============================================================================================
+
+create table globalhospitalinfo(countrycode smallint primary key, 
+ hospitalinfo text[] []);
+
+C:\Users\backup
+
+-- insert into profile(photo) values(lo_import('C:\Users\backup\OIP.jpg'));
+
+-- select * from profile;
+
+-- create table profile1(profile_id1 serial primary key,photo oid);
+============================================================================================
+-- --JOINING TABLE--
+
+-- -- refered table : patient, doctor ,appointment
+-- -- select * from patient;
+-- --select * from donor;
+-- --select * from appointment;
+
+-- select concat (p.firstname,p.lastname),concat(d.firsname,d.lastname), a.appointment_day,
+-- a.from_time,a.to_time
+-- from appointment a
+-- inner join patient p on a.patient_mobile_no_fk= p.mobileno inner join  doctor d on 
+-- a.doctor_mobile_no_fk= d.doctor_mobileno;
+
+--bill no whose cost is greater than avg of cost
+--sub query
+SELECT bill_no,cost from bill where cost>( select avg(cost) from bill);
+
+---second highest
+select max(cost) from bill where cost <(select max(cost) from bill);
+
+--count the no of bills based on cost
+select cost,count(bill_no) as bill_count from bill group by cost;
+
+---count the no of bills based on cost where cost is less than avg cost.
+
+select cost,count(bill_no) as bill_count from bill group by cost
+having cost <(select avg(cost) from bill);
+
+
+================================================================================================================
+-- --JOINING TABLE--
+
+-- -- refered table : patient, doctor ,appointment
+-- -- select * from patient;
+-- --select * from donor;
+-- --select * from appointment;
+
+-- select concat (p.firstname,p.lastname),concat(d.firsname,d.lastname), a.appointment_day,
+-- a.from_time,a.to_time
+-- from appointment a
+-- inner join patient p on a.patient_mobile_no_fk= p.mobileno inner join  doctor d on 
+-- a.doctor_mobile_no_fk= d.doctor_mobileno;
+
+--bill no whose cost is greater than avg of cost
+--sub query
+SELECT bill_no,cost from bill where cost>( select avg(cost) from bill);
+
+---second highest
+select max(cost) from bill where cost <(select max(cost) from bill);
+
+--count the no of bills based on cost
+select cost,count(bill_no) as bill_count from bill group by cost;
+
+---count the no of bills based on cost where cost is less than avg cost.
+
+select cost,count(bill_no) as bill_count from bill group by cost
+having cost <(select avg(cost) from bill);
+
+------------duplicate records---------------------------------
+-- select * from bill where bill_no = 5000;
+select bill_no, count(*) as cnt
+from bill
+group by bill_no,cost
+having count(*)>1;
+
+--select bills which are having cost 500,700 and 1000
+select bill_no,cost from bill where cost in(500,700,1000)
+----------------------------------------------------------
+--multilevel partition
+-- create type status as Enum('paid','pending');
+-- Create table BillMP(billno bigserial , billstatus status,cost numeric)
+-- partition by list(billstatus);
+select current_schema();
+-------------------------------------------------------------------------------------
+CREATE TABLE  BILLMP_PAID PARTITION OF BILLMP FOR VALUES IN ('paid') PARTITION BY RANGE(COST);
+CREATE TABLE BILLMP_COST_SMALL PARTITION OF BILLMP_PAID FOR VALUES FROM (MINVALUE) TO (1500)
+PARTITION BY HASH(BILLNO);
+CREATE TABLE BILLMP_COST_SMALL_HASH11 PARTITION OF BILLMP_COST_SMALL FOR VALUES WITH (MODULUS 2,REMAINDER 0);
+CREATE TABLE BILLMP_COST_SMALL_HASH12 PARTITION OF BILLMP_COST_SMALL FOR VALUES WITH (MODULUS 2,REMAINDER 1);
+
+
+insert into BILLMP_PAID(billstatus,cost)
+ values ('paid',1225); -- inserted
+ 
+--  select * from billmp_paid;
+==================================================================================================================
+do 
+$$
+declare 
+		price bill.cost%type;
+		price_segment varchar(50);
+	begin
+	--get the treatment rate
+	select cost into price
+	from bill
+	where bill_no = 5000;
+	
+	--assign the price segment
+	if found then
+	case price 
+		when 1500 then 
+			price_segment = 'LOW';
+		WHEN 15000 then 
+			price_segment = 'Medium';
+		when 45000 then 
+		price_segment = 'high end';
+	else 
+	price_segment = 'undefined';
+	
+	end case;
+	
+	raise notice '%',price_segment;
+	
+	end if;
+	end;
+	$$;
+=======================================================================================================
+
+create or replace function get_bill_stat
+(out min_cost int,
+ out max_cost int,
+ out avg_cost int
+)
+language plpgsql
+as $$
+BEGIN
+
+select min(cost),
+max(cost),
+avg(cost)
+into min_cost,max_cost,avg_cost
+from bill;
+
+end;
+$$;
+
+
+select * from get_bill_stat();
+============================================================================================================
+
+-- drop function bill_count(inout id int);
+create or replace function bill_count(inout id int)
+language plpgsql
+as
+$$
+begin
+select count(bill_no) into id from bill group by cost having cost < id;
+end;
+$$;
+
+
+select bill_count(10000);
+==================================================================================================================
+CREATE or replace function get_patient_age_duration
+( p_mobileno bigint,
+ p_current_date date default now():: date
+)
+returns int
+language plpgsql
+as $$
+declare age_duration int;
+
+BEGIN
+select sum( 
+	extract (day from (p_current_date)- dob::timestamp)) into age_duration
+from patient;
+return age_duration;
+
+
+end;
+$$;
+=======================================================================================
+select get_bills('s%');
+
+CREATE OR REPLACE FUNCTION get_bills(
+p_pattern varchar
+)
+returns table (p_billno bigint,
+			  p_cost int)
+Language 'plpgsql'
+as $$
+DECLARE 
+var_r record;
+begin
+	for var_r in(select bill_no,cost from bill
+				where treatment_type ilike p_pattern)
+				loop
+				p_billno:=var_r.bill_no;
+				p_cost:= var_r.cost;
+				return next;
+				end loop;
+				end; $$;
+=============================================================================================
+CREATE OR REPLACE PROCEDURE INSERT_Bill_data(p_data varchar,
+				p_appointment_no bigint)
+language 'plpgsql'
+as $$
+
+declare 
+ v_treatment_type varchar;
+ v_cost varchar;
+  begin
+  select split_part(p_data,'-',1),
+  		split_part(p_data,'-',2)
+		into v_treatment_type,v_cost;
+		
+	insert into bill values(p_appointment_no,v_treatment_type,v_cost::int);
+	end;
+	$$;
+	
+	call insert_bill_data('poloshing-750',1);
+==================================================================================================
+
+create or replace function get_patient_names(p_mobileno bigint) returns text
+language 'plpgsql'
+as $$
+
+DECLARE
+ 	v_prescription_info text default '';
+	rec record;
+	cur_prescription cursor(p_mobileno bigint)
+	for select prescription_info,docto_mobileno_fk
+	from prescription
+	where patient_mobileno_fk = p_mobileno;
+BEGIN
+--open the cursor
+open cur_prescription(p_mobileno);
+
+loop
+--fetch  row into film
+fetch cur_prescription into rec;
+--exit when no row found
+exit when not found;
+--build the output
+
+if rec.doctor_mobileno_fk>0 then 
+	v_prescription_info :=v_prescription_info||','||rec.prescription_info||','||rec.doctor_mobile_fk;
+	end if ;
+	end loop;
+	
+	
+	--close the curosr
+	close cur_prescription;
+	
+	return v_prescription;
+	
+	
+	end;
+	$$;
+===================================================================================================================
+
+
+create or replace procedure get_patient_names1(p_mobileno bigint,p_data out text ) 
+language 'plpgsql'
+as $$
+
+DECLARE
+ 	v_prescription_info text default '';
+	rec record;
+	cur_prescription cursor(p_mobileno bigint)
+	for select prescription_info,doctor_mobileno_fk
+	from prescription
+	where patient_mobileno_fk = p_mobileno;
+BEGIN
+--open the cursor
+open cur_prescription(p_mobileno);
+
+loop
+--fetch  row into film
+fetch cur_prescription into rec;
+--exit when no row found
+exit when not found;
+--build the output
+
+if rec.doctor_mobileno_fk>0 then 
+	v_prescription_info :=v_prescription_info||','||rec.prescription_info||','||rec.doctor_mobile_fk;
+	end if ;
+	end loop;
+	
+	
+	--close the curosr
+	close cur_prescription;
+	
+-- 	return v_prescription;
+	p_data :=v_prescription;
+	
+	end;
+	$$;
+	
+-- 	call get_patient_names1(9742429833, null)
+===================================================================================================================
+--refcursor
+CREATE FUNCTION reffunc1(refcursor) returns  refcursor as 
+'BEGIN 
+
+	Open $1 for select * from bill;
+	return  $1;
+	
+end;
+'language plpgsql;
+
+select reffunc1('mycur');
+fetch all in mycur;
+===================================================================================================================
