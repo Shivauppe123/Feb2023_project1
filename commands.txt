@@ -341,3 +341,187 @@ end;
 select reffunc1('mycur');
 fetch all in mycur;
 ===================================================================================================================
+--arrays in SP
+CREATE OR REPLACE FUNCTION printbills ()
+returns int[]
+language 'plpgsql'
+cost 100 volatile as $$
+
+declare v_billnos int[];
+
+BEGIN
+	SELECT  array_agg(bill_no) into  v_billnos
+	from bill;
+	return v_billnos;
+	
+	end;
+	$$;
+	
+	select  printbills();
+===========================================================
+DO $$
+DECLARE 
+ organs varchar[]; 
+ BEGIN
+ 
+ organs[1] := 'kidney';
+ organs[2] :='Liver';
+ organs[3] :='Heart';
+ --change value associated  to Liver
+ organs[2] := 'panscreas';
+ 
+ For i IN  array_lower(organs,1) .. array_upper(organs,1) LOOP
+ RAISE NOTICE  'organs of i % = %', i,organs[i];
+ end loop;
+ end;
+ 
+ $$;
+=========================================================================
+
+
+2sps
+
+===================================================
+##package##
+create or replace function healthschema.healthpackage$getbills(p_treatment_type varchar)
+returns void as $$
+declare
+v_rec record;
+begin 
+for v_rec in select * from public.bill b 
+where b.treatment_type ilike p_treatment_type
+	loop
+	raise notice 'bill no = % as cost = %',v_rec.bill_no,v_rec.cost;
+	end loop;
+	end;
+	$$ language plpgsql
+;
+
+
+select healthschema.healthpackage$getbills('i%');
+============================================================
+
+with list as 
+(SELECT  UNNEST(Medicines) as row_result
+FROM  dental_prescription
+where doctorname = 'Dr.Vignesh Manickam')
+
+select (row_result).medicine_id,
+(row_result).name,
+(roe_result).dosage
+from list;
+
+============================================================
+
+
+DROP TABLE IF EXISTS top_rated_films;
+create table top_rated_films( tittle varchar  not null,
+							release_year smallint);
+							
+							
+Create table most_popular_films( tittle varchar  not null,
+							release_year smallint);
+							
+insert into top_rated_films(tittle,release_year) values('Don',1999),('Housefull',2000),('Kick',2020);
+insert into most_popular_films(tittle,release_year) values('Don',1999),('kantara',2023),('KGF',2022);
+
+SELECT * FROM top_rated_films
+union all
+select *  FROM most_popular_films;
+							
+							
+===============================================================================================================
+
+--upsert query--
+
+DROP TABLE IF EXISTS CUSTOMERS;
+
+CREATE Table customers(
+customer_id serial primary key,
+	name varchar unique,
+	email varchar not null,
+	active bool not null default true);
+	
+	insert into customers(name,email)
+	values('IBM','CONTACT@ibm.com'),('Microsoft','contact@microsoft.com'),('Intel','contact@intel.com');
+	
+	Insert into customers (name,email)
+	values('Microsoft','hotline@microsoft.com')
+	on conflict on constraint customers_name_key
+	do nothing;
+	
+	insert into customers(name,email)
+	values('Microsoft','hotline@microsoft.com')
+	on conflict (name)
+	do
+	update  set email = excluded.email|| ';' || customers.email;
+	
+	/*testing
+	
+	select * from customers; */
+===============================================================================================================
+CREATE TABLE bill_audits
+( id bigserial primary key,
+ treatment_type varchar(100) not null,
+ cost int not null,
+ changed_on timestamp not null);
+ 
+ CREATE or replace function log_treatment_type_changes ()
+ 
+ RETURNS  TRIGGER
+ AS
+ $$
+ Begin
+ 	IF NEW.TREATMENT_TYPE<>OLD.TREATMENT_TYPE THEN
+	insert into bill_audits(treatment_type,cost,changed_on) values(old.treatment_type,old.cost,now());
+	
+	end if;
+	return new;
+	end;
+	$$ language 'plpgsql';
+	
+	
+	Create trigger bill_update_trigger
+	after update
+	on "bill"
+	for each row 
+	
+	execute procedure log_treatment_type_changes();
+	
+	
+	update bill
+	set treatment_type = 'implant'
+	where bill_no = 5000;
+	
+	select * from bill
+	select * from bill_audits;
+
+=====================================================================================================================
+CREATE OR REPLACE FUNCTION update_bill_afterbusiness_hours()
+returns trigger
+language plpgsql
+as $$
+begin
+		IF(TO_CHAR(NOW(),'DAY') IN ('FRIDAY','SATURDAY','SUNDAY'))
+		OR
+		(TO_CHAR(NOW(),'HH24:MI') NOT BETWEEN '08:00' AND '14:00') THEN
+		raise exception 'You may try to insert into bill table only during bussiness hours.';
+end if;
+end;
+$$;
+
+CREATE OR REPLACE TRIGGER update_bill_afterbusiness_hours
+
+BEFORE UPDATE
+ON "bill"
+
+for each row
+
+execute procedure update_bill_afterbusiness_hours();
+
+update bill
+set treatment_type = 'Implement'
+where bill_no = 500;
+
+
+=====================================================================================================================
